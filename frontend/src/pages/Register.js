@@ -1,8 +1,11 @@
 // src/pages/Register.js
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import './Register.css'; // Add this import
 
-function Register({ onSwitchToLogin, onRegisterSuccess }) {
+function Register() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -30,11 +33,10 @@ function Register({ onSwitchToLogin, onRegisterSuccess }) {
       const res = await axios.post('http://localhost:5000/api/auth/register', formData);
       setMessage(res.data.msg);
       
-      if (onRegisterSuccess) {
-        setTimeout(() => {
-          onRegisterSuccess();
-        }, 1500);
-      }
+      // Redirect to login page after successful registration
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
     } catch (err) {
       if (err.response && err.response.data && err.response.data.msg) {
         setMessage(err.response.data.msg);
@@ -49,15 +51,15 @@ function Register({ onSwitchToLogin, onRegisterSuccess }) {
   };
 
   return (
-    <div className="container">
-      <h2>Register</h2>
+    <div className="register-container">
+      <h2>Join Greddit</h2>
       <form onSubmit={onSubmit}>
         <div className="form-row">
           <div className="form-group">
             <label>First Name</label>
             <input
               type="text"
-              placeholder="First Name"
+              placeholder="Enter your first name"
               name="firstName"
               value={firstName}
               onChange={onChange}
@@ -68,7 +70,7 @@ function Register({ onSwitchToLogin, onRegisterSuccess }) {
             <label>Last Name</label>
             <input
               type="text"
-              placeholder="Last Name"
+              placeholder="Enter your last name"
               name="lastName"
               value={lastName}
               onChange={onChange}
@@ -81,7 +83,7 @@ function Register({ onSwitchToLogin, onRegisterSuccess }) {
           <label>Username</label>
           <input
             type="text"
-            placeholder="Username"
+            placeholder="Choose a username"
             name="username"
             value={username}
             onChange={onChange}
@@ -93,7 +95,7 @@ function Register({ onSwitchToLogin, onRegisterSuccess }) {
           <label>Email Address</label>
           <input
             type="email"
-            placeholder="Email"
+            placeholder="Enter your email"
             name="email"
             value={email}
             onChange={onChange}
@@ -106,7 +108,7 @@ function Register({ onSwitchToLogin, onRegisterSuccess }) {
             <label>Age</label>
             <input
               type="number"
-              placeholder="Age"
+              placeholder="Your age"
               name="age"
               value={age}
               onChange={onChange}
@@ -119,7 +121,7 @@ function Register({ onSwitchToLogin, onRegisterSuccess }) {
             <label>Contact Number</label>
             <input
               type="tel"
-              placeholder="Contact Number"
+              placeholder="Your phone number"
               name="contactNumber"
               value={contactNumber}
               onChange={onChange}
@@ -145,9 +147,13 @@ function Register({ onSwitchToLogin, onRegisterSuccess }) {
           {loading ? 'Registering...' : 'Register'}
         </button>
       </form>
-      {message && <p className="message">{message}</p>}
+      
+      {message && <div className={`message ${message.includes('success') ? 'success' : 'error'}`}>
+        {message}
+      </div>}
+      
       <div className="switch-form">
-        <p>Already have an account? <span onClick={onSwitchToLogin} className="link">Login here</span></p>
+        <p>Already have an account? <Link to="/login" className="link">Login here</Link></p>
       </div>
     </div>
   );

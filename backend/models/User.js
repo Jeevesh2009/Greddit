@@ -28,18 +28,18 @@ const userSchema = new mongoose.Schema({
     },
     age: { 
         type: Number, 
-        required: false, // Made optional for OAuth users
+        required: false,
         min: 1,
         max: 120 
     },
     contactNumber: { 
         type: String, 
-        required: false, // Made optional for OAuth users
+        required: false,
         trim: true 
     },
     password: { 
         type: String, 
-        required: false, // Made optional for OAuth users
+        required: false,
         minlength: 6 
     },
     // OAuth fields
@@ -60,9 +60,18 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['local', 'google', 'facebook'],
         default: 'local'
-    }
+    },
+    // New fields for followers/following
+    followers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+    following: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }]
 }, {
-    timestamps: true // Adds createdAt and updatedAt fields
+    timestamps: true
 });
 
 module.exports = mongoose.model('User', userSchema);

@@ -1,15 +1,40 @@
 // src/App.js
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import Login from './pages/Login';
 import Register from './pages/Register';
-// import AuthSuccess from './components/AuthSuccess';
+import HomePage from './pages/HomePage';
+import Profile from './pages/Profile';
+import Navbar from './components/Navbar';
 import './App.css';
 
 function App() {
-  const [currentView, setCurrentView] = useState('login');
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Function to refresh user data from server
+  const refreshUserData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return null;
+
+      const response = await axios.get('http://localhost:5000/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const userData = response.data.user;
+      localStorage.setItem('user', JSON.stringify(userData));
+      return userData;
+    } catch (error) {
+      console.error('Failed to refresh user data:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      return null;
+    }
+  };
 
   // Check for existing authentication on app load
   useEffect(() => {
@@ -27,36 +52,37 @@ function App() {
             localStorage.setItem('user', JSON.stringify(user));
             setUser(user);
             // Clean up URL
-            window.history.replaceState({}, document.title, window.location.pathname);
+            window.history.replaceState({}, document.title, '/home');
             return;
           } catch (error) {
             console.error('Error parsing OAuth response:', error);
           }
         }
 
-        // Check for existing token
+        // Check for existing token and refresh user data from server
         const existingToken = localStorage.getItem('token');
-        const storedUser = localStorage.getItem('user');
 
-        if (existingToken && storedUser) {
-          // Verify token is still valid
-          const response = await axios.get('http://localhost:5000/api/auth/verify', {
-            headers: {
-              'Authorization': `Bearer ${existingToken}`
+        if (existingToken) {
+          try {
+            // Always fetch fresh user data from server
+            const userData = await refreshUserData();
+            if (userData) {
+              setUser(userData);
+            } else {
+              // Token is invalid, clear storage
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
             }
-          });
-
-          if (response.data.user) {
-            setUser(response.data.user);
-          } else {
-            // Token is invalid, clear storage
+          } catch (error) {
+            // Token is invalid or expired, clear storage
+            console.error('Token verification failed:', error);
             localStorage.removeItem('token');
             localStorage.removeItem('user');
           }
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        // Token is invalid or expired, clear storage
+        // Clear invalid data
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       } finally {
@@ -67,20 +93,9 @@ function App() {
     checkAuthStatus();
   }, []);
 
-  const handleSwitchToRegister = () => {
-    setCurrentView('register');
-  };
-
-  const handleSwitchToLogin = () => {
-    setCurrentView('login');
-  };
-
   const handleLoginSuccess = (userData) => {
     setUser(userData);
-  };
-
-  const handleRegisterSuccess = () => {
-    setCurrentView('login');
+    localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const handleLogout = async () => {
@@ -104,6 +119,14 @@ function App() {
     }
   };
 
+  // Function to update user data (called from Profile component)
+  const updateUser = async () => {
+    const userData = await refreshUserData();
+    if (userData) {
+      setUser(userData);
+    }
+  };
+
   // Show loading spinner while checking authentication
   if (loading) {
     return (
@@ -116,43 +139,38 @@ function App() {
     );
   }
 
-  if (user) {
-    return (
-      <div className="container">
-        <div className="user-profile">
-          {user.profilePicture && (
-            <img 
-              src={user.profilePicture} 
-              alt="Profile" 
-              className="profile-picture"
-            />
-          )}
-          <div className="user-info">
-            <h3>Welcome back, {user.firstName} {user.lastName}!</h3>
-            <p><strong>Email:</strong> {user.email}</p>
-            <p><strong>Username:</strong> {user.username}</p>
-            <p><strong>Login Method:</strong> {user.authProvider}</p>
-          </div>
-        </div>
-        <button onClick={handleLogout}>Logout</button>
-      </div>
-    );
-  }
-
   return (
-    <div className="App">
-      {currentView === 'login' ? (
-        <Login 
-          onSwitchToRegister={handleSwitchToRegister}
-          onLoginSuccess={handleLoginSuccess}
+    <Router>
+      {user && <Navbar user={user} onLogout={handleLogout} />}
+      <Routes>
+        <Route 
+          path="/home" 
+          element={user ? <HomePage user={user} /> : <Navigate to="/login" replace />}
         />
-      ) : (
-        <Register 
-          onSwitchToLogin={handleSwitchToLogin}
-          onRegisterSuccess={handleRegisterSuccess}
+        <Route 
+          path="/profile" 
+          element={user ? <Profile user={user} updateUser={updateUser} /> : <Navigate to="/login" replace />}
         />
-      )}
-    </div>
+        <Route 
+          path="/login" 
+          element={!user ? <Login onLoginSuccess={handleLoginSuccess} /> : <Navigate to="/home" replace />}
+        />
+        <Route 
+          path="/register" 
+          element={!user ? <Register /> : <Navigate to="/home" replace />}
+        />
+        {/* Default redirect */}
+        <Route 
+          path="/" 
+          element={<Navigate to={user ? "/home" : "/login"} replace />}
+        />
+        {/* Catch all other routes */}
+        <Route 
+          path="*" 
+          element={<Navigate to={user ? "/home" : "/login"} replace />}
+        />
+      </Routes>
+    </Router>
   );
 }
 

@@ -186,24 +186,35 @@ router.get('/facebook/callback',
     }
 );
 
-// Get current user (Protected)
+// Get current user with fresh data (Protected)
 router.get('/me', auth, async (req, res) => {
     try {
+        const user = await User.findById(req.user._id)
+            .select('-password')
+            .populate('followers', 'firstName lastName username profilePicture')
+            .populate('following', 'firstName lastName username profilePicture');
+        
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
         res.json({
             user: {
-                id: req.user._id,
-                firstName: req.user.firstName,
-                lastName: req.user.lastName,
-                username: req.user.username,
-                email: req.user.email,
-                age: req.user.age,
-                contactNumber: req.user.contactNumber,
-                profilePicture: req.user.profilePicture,
-                authProvider: req.user.authProvider
+                id: user._id,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                username: user.username,
+                email: user.email,
+                age: user.age,
+                contactNumber: user.contactNumber,
+                profilePicture: user.profilePicture,
+                authProvider: user.authProvider,
+                followersCount: user.followers.length,
+                followingCount: user.following.length
             }
         });
     } catch (err) {
-        console.error('Get user error:', err);
+        console.error('Get current user error:', err);
         res.status(500).json({ msg: 'Server Error' });
     }
 });
@@ -219,7 +230,9 @@ router.get('/verify', auth, async (req, res) => {
                 username: req.user.username,
                 email: req.user.email,
                 profilePicture: req.user.profilePicture,
-                authProvider: req.user.authProvider
+                authProvider: req.user.authProvider,
+                followersCount: req.user.followers.length,
+                followingCount: req.user.following.length
             }
         });
     } catch (err) {
@@ -231,19 +244,39 @@ router.get('/verify', auth, async (req, res) => {
 // Update user profile (Protected)
 router.put('/profile', auth, async (req, res) => {
     try {
+        console.log('Profile update request received:', req.body);
+        console.log('User ID from token:', req.user._id);
+        
         const { firstName, lastName, age, contactNumber } = req.body;
         
+        // Validate input
+        if (!firstName || !lastName) {
+            return res.status(400).json({ msg: 'First name and last name are required' });
+        }
+
+        if (firstName.trim() === '' || lastName.trim() === '') {
+            return res.status(400).json({ msg: 'First name and last name cannot be empty' });
+        }
+        
         const updateData = {};
-        if (firstName) updateData.firstName = firstName;
-        if (lastName) updateData.lastName = lastName;
-        if (age) updateData.age = parseInt(age);
-        if (contactNumber) updateData.contactNumber = contactNumber;
+        updateData.firstName = firstName.trim();
+        updateData.lastName = lastName.trim();
+        if (age && parseInt(age) > 0) updateData.age = parseInt(age);
+        if (contactNumber && contactNumber.trim()) updateData.contactNumber = contactNumber.trim();
+
+        console.log('Update data:', updateData);
 
         const user = await User.findByIdAndUpdate(
             req.user._id,
             updateData,
-            { new: true }
+            { new: true, runValidators: true }
         ).select('-password');
+
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        console.log('Updated user:', user);
 
         res.json({
             msg: 'Profile updated successfully',
@@ -256,12 +289,18 @@ router.put('/profile', auth, async (req, res) => {
                 age: user.age,
                 contactNumber: user.contactNumber,
                 profilePicture: user.profilePicture,
-                authProvider: user.authProvider
+                authProvider: user.authProvider,
+                followersCount: user.followers ? user.followers.length : 0,
+                followingCount: user.following ? user.following.length : 0
             }
         });
     } catch (err) {
         console.error('Profile update error:', err);
-        res.status(500).json({ msg: 'Server Error' });
+        if (err.name === 'ValidationError') {
+            const errors = Object.values(err.errors).map(e => e.message);
+            return res.status(400).json({ msg: errors.join(', ') });
+        }
+        res.status(500).json({ msg: 'Server Error', error: err.message });
     }
 });
 

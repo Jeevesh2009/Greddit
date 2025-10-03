@@ -1,9 +1,12 @@
 // src/pages/Login.js
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { FaGoogle, FaFacebookF } from 'react-icons/fa';
+import './Login.css'; // Add this import
 
-function Login({ onSwitchToRegister, onLoginSuccess }) {
+function Login({ onLoginSuccess }) {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -34,6 +37,9 @@ function Login({ onSwitchToRegister, onLoginSuccess }) {
       if (onLoginSuccess) {
         onLoginSuccess(res.data.user);
       }
+      
+      // Navigate to home page
+      navigate('/home');
     } catch (err) {
       if (err.response && err.response.data) {
         setMessage(err.response.data.msg);
@@ -54,8 +60,8 @@ function Login({ onSwitchToRegister, onLoginSuccess }) {
   };
 
   return (
-    <div className="container">
-      <h2>Login</h2>
+    <div className="login-container">
+      <h2>Login to Greddit</h2>
       
       {/* OAuth Buttons */}
       <div className="oauth-buttons">
@@ -87,7 +93,7 @@ function Login({ onSwitchToRegister, onLoginSuccess }) {
           <label>Email Address</label>
           <input
             type="email"
-            placeholder="Email"
+            placeholder="Enter your email"
             name="email"
             value={email}
             onChange={onChange}
@@ -99,7 +105,7 @@ function Login({ onSwitchToRegister, onLoginSuccess }) {
           <label>Password</label>
           <input
             type="password"
-            placeholder="Password"
+            placeholder="Enter your password"
             name="password"
             value={password}
             onChange={onChange}
@@ -112,9 +118,13 @@ function Login({ onSwitchToRegister, onLoginSuccess }) {
           {loading ? 'Logging in...' : 'Login'}
         </button>
       </form>
-      {message && <p className="message">{message}</p>}
+      
+      {message && <div className={`message ${message.includes('success') ? 'success' : 'error'}`}>
+        {message}
+      </div>}
+      
       <div className="switch-form">
-        <p>Don't have an account? <span onClick={onSwitchToRegister} className="link">Register here</span></p>
+        <p>Don't have an account? <Link to="/register" className="link">Register here</Link></p>
       </div>
     </div>
   );
